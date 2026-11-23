@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tareas Compartidas - Equipo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .task-enter {
+            animation: slideIn 0.25s ease-out forwards;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Custom scrollbar for clean look */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-indigo-200 shadow-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight text-slate-800">Nuestras Tareas</h1>
+                    <div class="flex items-center gap-1.5">
+                        <span id="statusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span id="statusText" class="text-xs text-slate-500 font-medium">Conectando sala...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room & Share Button -->
+            <div class="flex items-center gap-2">
+                <button id="refreshBtn" title="Actualizar ahora" class="p-2 bg-slate-100 hover:bg-slate-200 active:scale-95 transition text-slate-600 rounded-xl border border-slate-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                </button>
+                <button id="roomModalBtn" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 transition text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span id="currentRoomBadge">Sala: ...</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-2xl w-full mx-auto px-4 pt-5 pb-28">
+        
+        <!-- Identity Selector (Who is adding?) -->
+        <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Soy:</span>
+                <div class="inline-flex rounded-xl bg-slate-100 p-1" role="group">
+                    <button type="button" id="roleYo" class="role-btn px-3.5 py-1.5 text-xs font-bold rounded-lg transition bg-white text-indigo-600 shadow-sm">
+                        Yo
+                    </button>
+                    <button type="button" id="roleSocia" class="role-btn px-3.5 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:text-slate-900">
+                        Mi Socia
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Filter Tabs -->
+            <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <button data-filter="all" class="filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg bg-white text-slate-800 shadow-sm transition">Todas</button>
+                <button data-filter="pending" class="filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition">Pendientes</button>
+                <button data-filter="completed" class="filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition">Listas</button>
+            </div>
+        </div>
+
+        <!-- Add Task Form -->
+        <form id="taskForm" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6 transition focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-50">
+            <div class="flex flex-col gap-3">
+                <input 
+                    type="text" 
+                    id="taskInput" 
+                    placeholder="¿Qué tenemos que hacer hoy?" 
+                    autocomplete="off"
+                    class="w-full text-base font-medium text-slate-800 placeholder-slate-400 focus:outline-none"
+                    required
+                >
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <!-- Priority Select -->
+                        <select id="prioritySelect" class="text-xs font-semibold bg-slate-100 text-slate-700 rounded-xl px-3 py-2 border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                            <option value="normal">Prioridad Normal</option>
+                            <option value="alta">🔥 Urgente</option>
+                            <option value="baja">☕ Tranqui</option>
+                        </select>
+                        <!-- Assignee Select -->
+                        <select id="assigneeSelect" class="text-xs font-semibold bg-slate-100 text-slate-700 rounded-xl px-3 py-2 border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                            <option value="Ambos">Para: Ambos</option>
+                            <option value="Yo">Para: Mí</option>
+                            <option value="Socia">Para: Mi Socia</option>
+                        </select>
+                    </div>
+                    <button 
+                        type="submit" 
+                        class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-sm px-5 py-2.5 rounded-xl shadow-md shadow-indigo-200 transition flex items-center gap-1.5 ml-auto"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Agregar
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Stats Summary -->
+        <div class="flex items-center justify-between px-1 mb-3">
+            <h2 class="text-sm font-bold text-slate-700">Lista de pendientes</h2>
+            <span id="taskCounter" class="text-xs font-semibold text-slate-500 bg-slate-200/70 px-2.5 py-0.5 rounded-full">0 tareas</span>
+        </div>
+
+        <!-- Task List Container -->
+        <div id="taskList" class="space-y-2.5">
+            <!-- Tasks injected here -->
+            <div class="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200">
+                <p class="text-slate-400 text-sm">Cargando tareas compartidas...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Room & Sync Modal -->
+    <div id="roomModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-[slideIn_0.2s_ease-out]">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-800">Conectar con tu Socia</h3>
+                <button id="closeModalBtn" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                Para que tu socia pueda agregar y ver las tareas desde su teléfono, envíale el enlace o usen el <strong>mismo código de sala</strong>.
+            </p>
+
+            <!-- Current Room Code Box -->
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-5 space-y-3">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-500 block mb-1">Código de tu sala actual</span>
+                    <div class="flex items-center justify-between gap-2">
+                        <code id="modalRoomCode" class="text-lg font-mono font-bold text-indigo-900 tracking-wider select-all">---</code>
+                        <button id="copyCodeBtn" class="bg-white hover:bg-indigo-100 active:scale-95 text-indigo-700 border border-indigo-200 text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1.5">
+                            Copiar código
+                        </button>
+                    </div>
+                </div>
+                <button id="copyLinkBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Copiar enlace directo para WhatsApp
+                </button>
+            </div>
+
+            <!-- Join another room -->
+            <div class="border-t border-slate-100 pt-4">
+                <label class="block text-xs font-bold text-slate-700 mb-2">¿Tu socia ya creó una sala? Ingresa su código:</label>
+                <div class="flex gap-2">
+                    <input 
+                        type="text" 
+                        id="joinRoomInput" 
+                        placeholder="Ej: EQUIPO-2026" 
+                        class="flex-1 bg-slate-100 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-mono uppercase focus:outline-none focus:border-indigo-500 focus:bg-white"
+                    >
+                    <button id="joinRoomBtn" class="bg-slate-800 hover:bg-slate-900 active:scale-95 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+                        Unirme
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Toast Notification -->
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-xl opacity-0 pointer-events-none transition-all duration-300 z-50 flex items-center gap-2">
+        <span id="toastIcon">✓</span>
+        <span id="toastMsg">Mensaje</span>
+    </div>
+
+    <!-- Real-time P2P & Distributed Sync Engine (GunDB) -->
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Environment Config
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tareas-compartidas-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        // App State
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let unsubscribeTasks = null;
+        let gun = null;
+        let gunRoom = null;
+        let useGunSync = false;
+        let tasksMap = new Map();
+        let tasks = [];
+        let currentFilter = 'all';
+        let currentAuthor = 'Yo';
+
+        // Room Management (via URL query or hash so sharing works everywhere)
+        function getRoomCode() {
+            const params = new URLSearchParams(window.location.search);
+            const queryRoom = (params.get('sala') || '').trim().toUpperCase();
+            if (queryRoom && queryRoom.length >= 3) return queryRoom;
+
+            const hash = window.location.hash.replace('#', '').trim().toUpperCase();
+            if (hash && hash.length >= 3) return hash;
+
+            const randomCode = 'SOCIOS-' + Math.floor(1000 + Math.random() * 9000);
+            window.location.hash = randomCode;
+            return randomCode;
+        }
+
+        let roomCode = getRoomCode();
+
+        // UI Elements
+        const taskForm = document.getElementById('taskForm');
+        const taskInput = document.getElementById('taskInput');
+        const prioritySelect = document.getElementById('prioritySelect');
+        const assigneeSelect = document.getElementById('assigneeSelect');
+        const taskList = document.getElementById('taskList');
+        const taskCounter = document.getElementById('taskCounter');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const currentRoomBadge = document.getElementById('currentRoomBadge');
+        const modalRoomCode = document.getElementById('modalRoomCode');
+        const roomModal = document.getElementById('roomModal');
+        const joinRoomInput = document.getElementById('joinRoomInput');
+
+        // Update Room Display
+        function updateRoomUI() {
+            currentRoomBadge.textContent = `Sala: ${roomCode}`;
+            modalRoomCode.textContent = roomCode;
+        }
+        updateRoomUI();
+
+        // Toast Helper
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+            toastMsg.textContent = msg;
+            toastIcon.textContent = isError ? '⚠️' : '✓';
+            toast.classList.remove('opacity-0', 'translate-y-2');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+            }, 2800);
+        }
+
+        // Distributed Real-Time P2P Relay Sync (Works on any hosting / phone without API keys)
+        function startGunSync() {
+            useGunSync = true;
+            tasksMap.clear();
+            tasks = [];
+            renderTasks();
+
+            if (!gun && typeof Gun !== 'undefined') {
+                gun = Gun({
+                    peers: [
+                        'https://gun-manhattan.herokuapp.com/gun',
+                        'https://relay.peer.ooo/gun',
+                        'https://peer.wallie.io/gun'
+                    ],
+                    localStorage: true
+                });
+            }
+
+            const cleanRoom = roomCode.replace(/[^A-Z0-9_-]/g, '');
+            gunRoom = gun.get('nuestras_tareas_compartidas_2026').get(cleanRoom);
+
+            statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+            statusText.textContent = 'Sincronizado en vivo';
+
+            // Listen to every task item in real-time
+            gunRoom.map().on((data, id) => {
+                if (!data || data.deleted === true || !data.text) {
+                    tasksMap.delete(id);
+                } else {
+                    tasksMap.set(id, {
+                        id,
+                        text: data.text,
+                        priority: data.priority || 'normal',
+                        assignee: data.assignee || 'Ambos',
+                        author: data.author || 'Yo',
+                        completed: Boolean(data.completed),
+                        createdAt: data.createdAt || Date.now()
+                    });
+                }
+                tasks = Array.from(tasksMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+                renderTasks();
+            });
+        }
+
+        // Initialize Sync (Firebase if inside environment, otherwise GunDB P2P Relay)
+        async function initApp() {
+            if (!firebaseConfig) {
+                startGunSync();
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                        statusText.textContent = 'Sincronizado en vivo';
+                        subscribeToRoomTasks();
+                    }
+                });
+            } catch (err) {
+                console.warn("Usando sincronización P2P:", err);
+                startGunSync();
+            }
+        }
+
+        // Subscribe to Public Room Collection
+        function subscribeToRoomTasks() {
+            if (useGunSync) {
+                startGunSync();
+                return;
+            }
+            if (!db || !currentUser) return;
+            if (unsubscribeTasks) unsubscribeTasks();
+
+            const collectionName = `tasks_${roomCode.replace(/[^A-Z0-9_-]/g, '')}`;
+            const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+
+            unsubscribeTasks = onSnapshot(tasksRef, (snapshot) => {
+                const loaded = [];
+                snapshot.forEach((docSnap) => {
+                    loaded.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                tasks = loaded.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                renderTasks();
+            }, (error) => {
+                console.warn("Cambiando a sincronización P2P:", error);
+                startGunSync();
+            });
+        }
+
+        // Add New Task
+        taskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = taskInput.value.trim();
+            if (!text) return;
+
+            const newTask = {
+                text,
+                priority: prioritySelect.value,
+                assignee: assigneeSelect.value,
+                author: currentAuthor,
+                completed: false,
+                deleted: false,
+                createdAt: Date.now()
+            };
+
+            taskInput.value = '';
+
+            if (useGunSync || !db || !currentUser) {
+                const taskId = 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+                tasksMap.set(taskId, { id: taskId, ...newTask });
+                tasks = Array.from(tasksMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+                renderTasks();
+                gunRoom.get(taskId).put(newTask);
+                showToast("Tarea agregada y sincronizada");
+                return;
+            }
+
+            try {
+                const collectionName = `tasks_${roomCode.replace(/[^A-Z0-9_-]/g, '')}`;
+                const tasksRef = collection(db, 'artifacts', appId, 'public', 'data', collectionName);
+                await addDoc(tasksRef, newTask);
+                showToast("Tarea agregada");
+            } catch (err) {
+                console.error("Error agregando:", err);
+                showToast("No se pudo guardar la tarea", true);
+            }
+        });
+
+        // Toggle Task Complete
+        window.toggleTask = async (id, currentStatus) => {
+            if (useGunSync || !db || !currentUser) {
+                const existing = tasksMap.get(id);
+                if (existing) {
+                    existing.completed = !currentStatus;
+                    tasksMap.set(id, existing);
+                    tasks = Array.from(tasksMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+                    renderTasks();
+                }
+                gunRoom.get(id).get('completed').put(!currentStatus);
+                return;
+            }
+            try {
+                const collectionName = `tasks_${roomCode.replace(/[^A-Z0-9_-]/g, '')}`;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', collectionName, id);
+                await updateDoc(docRef, { completed: !currentStatus });
+            } catch (err) {
+                console.error("Error actualizando:", err);
+                showToast("Error al actualizar", true);
+            }
+        };
+
+        // Delete Task
+        window.deleteTask = async (id) => {
+            if (useGunSync || !db || !currentUser) {
+                tasksMap.delete(id);
+                tasks = Array.from(tasksMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+                renderTasks();
+                gunRoom.get(id).put({ deleted: true, text: '' });
+                showToast("Tarea eliminada");
+                return;
+            }
+            try {
+                const collectionName = `tasks_${roomCode.replace(/[^A-Z0-9_-]/g, '')}`;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', collectionName, id);
+                await deleteDoc(docRef);
+                showToast("Tarea eliminada");
+            } catch (err) {
+                console.error("Error eliminando:", err);
+                showToast("Error al eliminar", true);
+            }
+        };
+
+        // Manual Refresh Button
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            if (useGunSync && gunRoom) {
+                // Re-broadcast current tasks to ensure both phones match
+                tasksMap.forEach((task, id) => {
+                    gunRoom.get(id).put({
+                        text: task.text,
+                        priority: task.priority,
+                        assignee: task.assignee,
+                        author: task.author,
+                        completed: task.completed,
+                        deleted: false,
+                        createdAt: task.createdAt
+                    });
+                });
+                showToast("Sincronización forzada");
+            } else {
+                subscribeToRoomTasks();
+                showToast("Sincronizado");
+            }
+        });
+
+        // Render Tasks
+        function renderTasks() {
+            const filtered = tasks.filter(t => {
+                if (currentFilter === 'pending') return !t.completed;
+                if (currentFilter === 'completed') return t.completed;
+                return true;
+            });
+
+            const pendingCount = tasks.filter(t => !t.completed).length;
+            taskCounter.textContent = `${pendingCount} pendiente${pendingCount === 1 ? '' : 's'}`;
+
+            if (filtered.length === 0) {
+                taskList.innerHTML = `
+                    <div class="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 px-4">
+                        <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                        </div>
+                        <p class="text-slate-600 font-semibold text-sm">No hay tareas aquí</p>
+                        <p class="text-slate-400 text-xs mt-1">Escribe arriba para anotar un nuevo pendiente.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            taskList.innerHTML = filtered.map(task => {
+                const priorityBadge = task.priority === 'alta' 
+                    ? '<span class="text-[11px] font-bold bg-rose-50 text-rose-600 px-2 py-0.5 rounded-md border border-rose-100">🔥 Urgente</span>'
+                    : task.priority === 'baja'
+                    ? '<span class="text-[11px] font-semibold bg-sky-50 text-sky-600 px-2 py-0.5 rounded-md border border-sky-100">☕ Tranqui</span>'
+                    : '';
+
+                const authorColor = task.author === 'Socia' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100';
+
+                return `
+                    <div class="task-enter group bg-white p-4 rounded-2xl border ${task.completed ? 'border-slate-100 bg-slate-50/60' : 'border-slate-200 shadow-xs'} flex items-start gap-3.5 transition">
+                        <button 
+                            onclick="toggleTask('${task.id}', ${task.completed})"
+                            class="mt-0.5 w-6 h-6 rounded-xl border-2 flex items-center justify-center shrink-0 transition active:scale-90 ${task.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-indigo-500 bg-white'}"
+                            aria-label="Completar tarea"
+                        >
+                            ${task.completed ? '<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                        </button>
+
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm sm:text-base font-medium break-words leading-snug transition ${task.completed ? 'line-through text-slate-400' : 'text-slate-800'}">
+                                ${escapeHtml(task.text)}
+                            </p>
+                            <div class="flex flex-wrap items-center gap-1.5 mt-2">
+                                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md border ${authorColor}">
+                                    Agregó: ${escapeHtml(task.author || 'Yo')}
+                                </span>
+                                <span class="text-[11px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                                    Para: ${escapeHtml(task.assignee || 'Ambos')}
+                                </span>
+                                ${priorityBadge}
+                            </div>
+                        </div>
+
+                        <button 
+                            onclick="deleteTask('${task.id}')"
+                            class="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition shrink-0"
+                            aria-label="Eliminar tarea"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Role Switcher ("Yo" vs "Mi Socia")
+        document.getElementById('roleYo').addEventListener('click', (e) => {
+            currentAuthor = 'Yo';
+            e.target.className = 'role-btn px-3.5 py-1.5 text-xs font-bold rounded-lg transition bg-white text-indigo-600 shadow-sm';
+            document.getElementById('roleSocia').className = 'role-btn px-3.5 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:text-slate-900';
+        });
+
+        document.getElementById('roleSocia').addEventListener('click', (e) => {
+            currentAuthor = 'Socia';
+            e.target.className = 'role-btn px-3.5 py-1.5 text-xs font-bold rounded-lg transition bg-white text-purple-600 shadow-sm';
+            document.getElementById('roleYo').className = 'role-btn px-3.5 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:text-slate-900';
+        });
+
+        // Filter Switcher
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    b.className = 'filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition';
+                });
+                btn.className = 'filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg bg-white text-slate-800 shadow-sm transition';
+                currentFilter = btn.dataset.filter;
+                renderTasks();
+            });
+        });
+
+        // Modal Controls
+        document.getElementById('roomModalBtn').addEventListener('click', () => {
+            roomModal.classList.remove('hidden');
+        });
+        document.getElementById('closeModalBtn').addEventListener('click', () => {
+            roomModal.classList.add('hidden');
+        });
+        roomModal.addEventListener('click', (e) => {
+            if (e.target === roomModal) roomModal.classList.add('hidden');
+        });
+
+        // Copy Room Code
+        document.getElementById('copyCodeBtn').addEventListener('click', () => {
+            const tempInput = document.createElement('input');
+            tempInput.value = roomCode;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast(`Código ${roomCode} copiado`);
+        });
+
+        // Copy Direct Link
+        document.getElementById('copyLinkBtn').addEventListener('click', () => {
+            const baseUrl = window.location.href.split('#')[0].split('?')[0];
+            const shareUrl = `${baseUrl}?sala=${roomCode}#${roomCode}`;
+            const tempInput = document.createElement('input');
+            tempInput.value = shareUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast("Enlace copiado listo para enviar");
+        });
+
+        // Join Room
+        document.getElementById('joinRoomBtn').addEventListener('click', () => {
+            const newCode = joinRoomInput.value.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+            if (newCode.length < 3) {
+                showToast("Ingresa un código válido (mín. 3 letras)", true);
+                return;
+            }
+            roomCode = newCode;
+            window.location.hash = roomCode;
+            updateRoomUI();
+            joinRoomInput.value = '';
+            roomModal.classList.add('hidden');
+            subscribeToRoomTasks();
+            showToast(`Conectado a la sala ${roomCode}`);
+        });
+
+        // Start App
+        initApp();
+    </script>
+</body>
+</html>
